@@ -80,6 +80,9 @@ interface BoardState {
   allTasks: IProjectTask[];
   grouping: string;
   totalTasks: number;
+
+  currentProjectId: string | null;
+  isProjectSwitching: boolean;
 }
 
 const initialState: BoardState = {
@@ -105,6 +108,8 @@ const initialState: BoardState = {
   allTasks: [],
   grouping: '',
   totalTasks: 0,
+  currentProjectId: null,
+  isProjectSwitching: false,
 };
 
 const deleteTaskFromGroup = (
@@ -529,9 +534,18 @@ const boardSlice = createSlice({
     resetBoardData: state => {
       state.taskGroups = [];
       state.columns = [];
-      state.loadingGroups = false;
+      state.loadingGroups = true;
       state.loadingColumns = false;
       state.error = null;
+      state.isProjectSwitching = true;
+    },
+
+    setCurrentProjectId: (state, action: PayloadAction<string | null>) => {
+      state.currentProjectId = action.payload;
+    },
+
+    setProjectSwitching: (state, action: PayloadAction<boolean>) => {
+      state.isProjectSwitching = action.payload;
     },
 
     setBoardLabels: (state, action: PayloadAction<ITaskLabelFilter[]>) => {
@@ -804,7 +818,12 @@ const boardSlice = createSlice({
   },
   extraReducers: builder => {
     builder
-      .addCase(fetchBoardTaskGroups.pending, state => {
+      .addCase(fetchBoardTaskGroups.pending, (state, action) => {
+        const requestedProjectId = action.meta.arg;
+        if (requestedProjectId !== state.currentProjectId) {
+          state.isProjectSwitching = true;
+          state.taskGroups = [];
+        }
         state.loadingGroups = true;
         state.error = null;
       })
@@ -815,10 +834,13 @@ const boardSlice = createSlice({
         state.grouping = action.payload && action.payload.grouping ? action.payload.grouping : '';
         state.totalTasks =
           action.payload && action.payload.totalTasks ? action.payload.totalTasks : 0;
+        state.currentProjectId = action.meta.arg;
+        state.isProjectSwitching = false;
       })
       .addCase(fetchBoardTaskGroups.rejected, (state, action) => {
         state.loadingGroups = false;
         state.error = action.error.message || 'Failed to fetch task groups';
+        state.isProjectSwitching = false;
       })
       .addCase(fetchBoardSubTasks.pending, (state, action) => {
         state.error = null;
@@ -877,6 +899,8 @@ export const {
   reorderTaskGroups,
   moveTaskBetweenGroups,
   resetBoardData,
+  setCurrentProjectId,
+  setProjectSwitching,
   setBoardLabels,
   setBoardMembers,
   setBoardPriorities,

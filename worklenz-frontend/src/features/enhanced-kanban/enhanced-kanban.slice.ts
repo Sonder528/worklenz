@@ -102,6 +102,10 @@ interface EnhancedKanbanState {
   expandedSubtasks: Record<string, boolean>;
   columnOrder: string[];
   editableSectionId: string | null;
+
+  // Project switching state
+  currentProjectId: string | null;
+  isProjectSwitching: boolean;
 }
 
 const initialState: EnhancedKanbanState = {
@@ -143,6 +147,8 @@ const initialState: EnhancedKanbanState = {
   expandedSubtasks: {},
   columnOrder: [],
   editableSectionId: null,
+  currentProjectId: null,
+  isProjectSwitching: false,
 };
 
 // Performance monitoring utility
@@ -723,7 +729,12 @@ const enhancedKanbanSlice = createSlice({
 
     // Reset state
     resetState: state => {
-      return { ...initialState, groupBy: state.groupBy };
+      return {
+        ...initialState,
+        groupBy: state.groupBy,
+        loadingGroups: true,
+        isProjectSwitching: true,
+      };
     },
 
     // Synchronous reorder for tasks
@@ -909,13 +920,20 @@ const enhancedKanbanSlice = createSlice({
   },
   extraReducers: builder => {
     builder
-      .addCase(fetchEnhancedKanbanGroups.pending, state => {
+      .addCase(fetchEnhancedKanbanGroups.pending, (state, action) => {
+        const requestedProjectId = action.meta.arg;
+        if (requestedProjectId !== state.currentProjectId) {
+          state.isProjectSwitching = true;
+          state.taskGroups = [];
+        }
         state.loadingGroups = true;
         state.error = null;
       })
       .addCase(fetchEnhancedKanbanGroups.fulfilled, (state, action) => {
         state.loadingGroups = false;
         state.taskGroups = action.payload;
+        state.currentProjectId = action.meta.arg;
+        state.isProjectSwitching = false;
 
         // Update performance metrics
         state.performanceMetrics = calculatePerformanceMetrics(action.payload);
@@ -950,6 +968,7 @@ const enhancedKanbanSlice = createSlice({
       .addCase(fetchEnhancedKanbanGroups.rejected, (state, action) => {
         state.loadingGroups = false;
         state.error = action.payload as string;
+        state.isProjectSwitching = false;
       })
       .addCase(reorderEnhancedKanbanTasks.fulfilled, (state, action) => {
         const { activeGroupId, overGroupId, updatedSourceTasks, updatedTargetTasks } =

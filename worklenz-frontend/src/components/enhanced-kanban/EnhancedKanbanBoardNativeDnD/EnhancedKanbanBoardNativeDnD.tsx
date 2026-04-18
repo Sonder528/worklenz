@@ -39,6 +39,7 @@ const EnhancedKanbanBoardNativeDnD: React.FC<{ projectId: string }> = ({ project
     taskGroups,
     loadingGroups,
     error,
+    isProjectSwitching,
   } = useSelector((state: RootState) => state.enhancedKanbanReducer);
   const { phaseList, loadingPhases } = useAppSelector(state => state.phaseReducer);
   const [draggedGroupId, setDraggedGroupId] = useState<string | null>(null);
@@ -377,6 +378,8 @@ const EnhancedKanbanBoardNativeDnD: React.FC<{ projectId: string }> = ({ project
     );
   }
 
+  const showFullSkeleton = isProjectSwitching;
+
   return (
     <>
       <div className="mb-4">
@@ -385,19 +388,24 @@ const EnhancedKanbanBoardNativeDnD: React.FC<{ projectId: string }> = ({ project
         </React.Suspense>
       </div>
       <div className="enhanced-kanban-board">
-        {loadingGroups ? (
+        {showFullSkeleton ? (
           <div className="flex flex-row gap-2 h-[600px]">
             <div className="rounded bg-gray-200 dark:bg-gray-700 animate-pulse w-1/4" style={{ height: '60%' }} />
             <div className="rounded bg-gray-200 dark:bg-gray-700 animate-pulse w-1/4" style={{ height: '100%' }} />
             <div className="rounded bg-gray-200 dark:bg-gray-700 animate-pulse w-1/4" style={{ height: '80%' }} />
             <div className="rounded bg-gray-200 dark:bg-gray-700 animate-pulse w-1/4" style={{ height: '40%' }} />
           </div>
-        ) : taskGroups.length === 0 ? (
+        ) : taskGroups.length === 0 && !loadingGroups ? (
           <Card>
             <Empty description={t('noTasksFound')} image={Empty.PRESENTED_IMAGE_SIMPLE} />
           </Card>
         ) : (
-          <div className="kanban-groups-container">
+          <div className="relative kanban-groups-container">
+            {loadingGroups && (
+              <div className="absolute inset-0 bg-white bg-opacity-70 dark:bg-gray-900 dark:bg-opacity-70 z-10 flex items-center justify-center">
+                <Spin size="large" />
+              </div>
+            )}
             {taskGroups.map(group => (
               <KanbanGroup
                 key={group.id}

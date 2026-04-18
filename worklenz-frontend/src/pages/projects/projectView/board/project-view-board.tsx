@@ -2,7 +2,7 @@ import { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import { useAppSelector } from '@/hooks/useAppSelector';
 
 import TaskListFilters from '../taskList/task-list-filters/task-list-filters';
-import { Flex, Skeleton } from 'antd';
+import { Flex, Skeleton, Spin } from 'antd';
 import BoardSectionCardContainer from './board-section/board-section-container';
 import {
   fetchBoardTaskGroups,
@@ -66,7 +66,15 @@ const ProjectViewBoard = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   const { projectId } = useAppSelector(state => state.projectReducer);
-  const { taskGroups, groupBy, loadingGroups, search, archived } = useAppSelector(state => state.boardReducer);
+  const {
+    taskGroups,
+    groupBy,
+    loadingGroups,
+    search,
+    archived,
+    isProjectSwitching,
+    currentProjectId,
+  } = useAppSelector(state => state.boardReducer);
   const { statusCategories, loading: loadingStatusCategories } = useAppSelector(
     state => state.taskStatusReducer
   );
@@ -80,6 +88,10 @@ const ProjectViewBoard = () => {
   const isDraggingRef = useRef(false);
 
   // Update loading state based on all loading conditions
+  // Show full skeleton when project is switching or status categories are loading
+  // Show light loading when just re-fetching data for the same project (filter/sort)
+  const showFullSkeleton = isProjectSwitching || loadingStatusCategories;
+
   useEffect(() => {
     setIsLoading(loadingGroups || loadingStatusCategories);
   }, [loadingGroups, loadingStatusCategories]);
@@ -556,25 +568,45 @@ const ProjectViewBoard = () => {
   return (
     <Flex vertical gap={16}>
       <TaskListFilters position={'board'} />
-      <Skeleton active loading={isLoading} className='mt-4 p-4'>
-        <DndContext
-          sensors={sensors}
-          collisionDetection={collisionDetectionStrategy}
-          onDragStart={handleDragStart}
-          onDragOver={handleDragOver}
-          onDragEnd={handleDragEnd}
-          onDragCancel={handleDragCancel}
-        >
-          <BoardSectionCardContainer
-            datasource={taskGroups}
-            group={groupBy as 'status' | 'priority' | 'phases'}
-          />
-          <DragOverlay>
-            {activeItem?.type === 'task' && (
-              <BoardViewTaskCard task={activeItem.task} sectionId={activeItem.sectionId} />
-            )}
-          </DragOverlay>
-        </DndContext>
+      <Skeleton active loading={showFullSkeleton} className='mt-4 p-4'>
+        <div style={{ position: 'relative' }}>
+          {loadingGroups && !showFullSkeleton && (
+            <div
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundColor: 'rgba(255, 255, 255, 0.7)',
+                zIndex: 10,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Spin size='large' />
+            </div>
+          )}
+          <DndContext
+            sensors={sensors}
+            collisionDetection={collisionDetectionStrategy}
+            onDragStart={handleDragStart}
+            onDragOver={handleDragOver}
+            onDragEnd={handleDragEnd}
+            onDragCancel={handleDragCancel}
+          >
+            <BoardSectionCardContainer
+              datasource={taskGroups}
+              group={groupBy as 'status' | 'priority' | 'phases'}
+            />
+            <DragOverlay>
+              {activeItem?.type === 'task' && (
+                <BoardViewTaskCard task={activeItem.task} sectionId={activeItem.sectionId} />
+              )}
+            </DragOverlay>
+          </DndContext>
+        </div>
       </Skeleton>
     </Flex>
   );
