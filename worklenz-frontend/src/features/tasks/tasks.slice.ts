@@ -83,6 +83,8 @@ interface ITaskState {
   allTasks: IProjectTask[];
   grouping: string;
   totalTasks: number;
+  currentProjectId: string | null;
+  isProjectSwitching: boolean;
 }
 
 const initialState: ITaskState = {
@@ -111,6 +113,8 @@ const initialState: ITaskState = {
   allTasks: [],
   grouping: '',
   totalTasks: 0,
+  currentProjectId: null,
+  isProjectSwitching: false,
 };
 
 export const COLUMN_KEYS = {
@@ -877,7 +881,9 @@ const taskSlice = createSlice({
     resetTaskListData: state => {
       return {
         ...initialState,
-        groupBy: state.groupBy, // Preserve the current grouping
+        groupBy: state.groupBy,
+        loadingGroups: true,
+        isProjectSwitching: true,
       };
     },
 
@@ -1033,7 +1039,12 @@ const taskSlice = createSlice({
 
   extraReducers: builder => {
     builder
-      .addCase(fetchTaskGroups.pending, state => {
+      .addCase(fetchTaskGroups.pending, (state, action) => {
+        const requestedProjectId = action.meta.arg;
+        if (requestedProjectId !== state.currentProjectId) {
+          state.isProjectSwitching = true;
+          state.taskGroups = [];
+        }
         state.loadingGroups = true;
         state.error = null;
       })
@@ -1044,10 +1055,13 @@ const taskSlice = createSlice({
         state.grouping = action.payload && action.payload.grouping ? action.payload.grouping : '';
         state.totalTasks =
           action.payload && action.payload.totalTasks ? action.payload.totalTasks : 0;
+        state.currentProjectId = action.meta.arg;
+        state.isProjectSwitching = false;
       })
       .addCase(fetchTaskGroups.rejected, (state, action) => {
         state.loadingGroups = false;
         state.error = action.error.message || 'Failed to fetch task groups';
+        state.isProjectSwitching = false;
       })
       .addCase(fetchSubTasks.pending, state => {
         state.error = null;
