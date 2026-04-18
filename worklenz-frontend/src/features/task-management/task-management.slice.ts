@@ -67,6 +67,9 @@ const initialState: TaskManagementState = {
   // Add sort-related state
   sortField: '',
   sortOrder: 'ASC',
+  // Add project switching tracking
+  currentProjectId: null,
+  isProjectSwitching: false,
 };
 
 // Async thunk to fetch tasks from API
@@ -770,7 +773,7 @@ const taskManagementSlice = createSlice({
       state.sortOrder = action.payload.order;
     },
     resetTaskManagement: state => {
-      state.loading = false;
+      state.loading = true;
       state.error = null;
       state.groups = [];
       state.grouping = undefined;
@@ -781,6 +784,7 @@ const taskManagementSlice = createSlice({
       state.sortOrder = 'ASC';
       state.ids = [];
       state.entities = {};
+      state.isProjectSwitching = true;
     },
     toggleTaskExpansion: (state, action: PayloadAction<string>) => {
       const task = state.entities[action.payload];
@@ -968,12 +972,21 @@ const taskManagementSlice = createSlice({
   },
   extraReducers: builder => {
     builder
-      .addCase(fetchTasksV3.pending, state => {
+      .addCase(fetchTasksV3.pending, (state, action) => {
+        const requestedProjectId = action.meta.arg;
+        if (requestedProjectId !== state.currentProjectId) {
+          state.isProjectSwitching = true;
+          state.ids = [];
+          state.entities = {};
+          state.groups = [];
+        }
         state.loading = true;
         state.error = null;
       })
       .addCase(fetchTasksV3.fulfilled, (state, action) => {
         state.loading = false;
+        state.isProjectSwitching = false;
+        state.currentProjectId = action.meta.arg;
         const { allTasks, groups, grouping } = action.payload;
         
         // Preserve existing timer state from old tasks before replacing
@@ -1000,6 +1013,7 @@ const taskManagementSlice = createSlice({
       })
       .addCase(fetchTasksV3.rejected, (state, action) => {
         state.loading = false;
+        state.isProjectSwitching = false;
         state.error = action.error?.message || (action.payload as string) || 'Failed to load tasks (V3)';
         state.ids = [];
         state.entities = {};
@@ -1220,6 +1234,10 @@ export const selectTasksByPhase = createSelector(
 
 // Add archived selector
 export const selectArchived = (state: RootState) => state.taskManagement.archived;
+
+// Add project switching selectors
+export const selectIsProjectSwitching = (state: RootState) => state.taskManagement.isProjectSwitching;
+export const selectCurrentProjectId = (state: RootState) => state.taskManagement.currentProjectId;
 
 // Export the reducer as default
 export default taskManagementSlice.reducer;

@@ -117,6 +117,9 @@ export interface TaskManagementState {
   // Add sort-related state
   sortField: string;
   sortOrder: 'ASC' | 'DESC';
+  // Add project switching tracking
+  currentProjectId: string | null;
+  isProjectSwitching: boolean;
 }
 
 export interface TaskGroupsState {
