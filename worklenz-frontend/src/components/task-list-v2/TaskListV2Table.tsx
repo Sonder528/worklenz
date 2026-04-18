@@ -20,7 +20,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 import { createPortal } from 'react-dom';
-import { HolderOutlined } from '@/shared/antd-imports';
+import { HolderOutlined, Spin } from '@/shared/antd-imports';
 
 // Redux hooks and selectors
 import { useAppSelector } from '@/hooks/useAppSelector';
@@ -37,6 +37,7 @@ import {
   selectCustomColumns,
   selectLoadingColumns,
   updateColumnVisibility,
+  selectIsProjectSwitching,
 } from '@/features/task-management/task-management.slice';
 import {
   selectCurrentGrouping,
@@ -219,6 +220,7 @@ const TaskListV2Section: React.FC = () => {
   const grouping = useAppSelector(selectGrouping);
   const loading = useAppSelector(selectLoading);
   const error = useAppSelector(selectError);
+  const isProjectSwitching = useAppSelector(selectIsProjectSwitching);
   const currentGrouping = useAppSelector(selectCurrentGrouping);
   const selectedTaskIds = useAppSelector(selectSelectedTaskIds);
   const lastSelectedTaskId = useAppSelector(selectLastSelectedTaskId);
@@ -722,7 +724,9 @@ const TaskListV2Section: React.FC = () => {
   );
 
   // Loading and error states
-  if (loading || loadingColumns) {
+  const showFullSkeleton = isProjectSwitching || loadingColumns;
+  
+  if (showFullSkeleton) {
     return <TaskListSkeleton visibleColumns={visibleColumns} />;
   }
   if (error)
@@ -857,14 +861,22 @@ const TaskListV2Section: React.FC = () => {
       <div className="flex flex-col bg-white dark:bg-gray-900 h-full overflow-hidden">
         {/* Table Container */}
         <div
-          className="border border-gray-200 dark:border-gray-700 rounded-lg"
+          className="border border-gray-200 dark:border-gray-700 rounded-lg relative"
           style={{
-            height: 'calc(100vh - 240px)', // Slightly reduce height to ensure scrollbar visibility
+            height: 'calc(100vh - 240px)',
             display: 'flex',
             flexDirection: 'column',
             overflow: 'hidden',
           }}
         >
+          {/* Lightweight loading overlay for same-project operations */}
+          {loading && !showFullSkeleton && (
+            <div
+              className="absolute inset-0 bg-white bg-opacity-70 dark:bg-gray-900 dark:bg-opacity-70 z-50 flex items-center justify-center"
+            >
+              <Spin size="large" />
+            </div>
+          )}
           {/* Task List Content with Sticky Header */}
           <div
             ref={contentScrollRef}
